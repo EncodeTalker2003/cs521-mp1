@@ -1,5 +1,5 @@
 # MP1
-CS521 Fall 2025, Machine Project 1
+CS521 Fall 2026, Machine Project 1
 
 ### Compiling Part 1 (CPU) on Apple devices:
 Notes: 
