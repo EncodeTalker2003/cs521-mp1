@@ -57,17 +57,17 @@ void gemm_cpu_o1(float* A, float* B, float *C, int M, int N, int K) {
 
 void gemm_cpu_o2(float* A, float* B, float *C, int M, int N, int K) {
   constexpr int TILE_SIZE = 64;
-	
+
   for (int i = 0; i < M; i++) {
     for (int kk = 0; kk < K; kk += TILE_SIZE) {
       const int kEnd = (kk + TILE_SIZE < K) ? kk + TILE_SIZE : K;
-      for (int jj = 0; jj < N; jj += TILE_SIZE) {
-        const int jEnd = (jj + TILE_SIZE < N) ? jj + TILE_SIZE : N;
-        for (int k = kk; k < kEnd; k++) {
-          const float a = A[i * K + k];
-          for (int j = jj; j < jEnd; j++) {
-            C[i * N + j] += a * B[k * N + j];
-          }
+			for (int k = kk; k < kEnd; k++) {
+				const float a = A[i * K + k];
+				for (int jj = 0; jj < N; jj += TILE_SIZE) {
+					const int jEnd = (jj + TILE_SIZE < N) ? jj + TILE_SIZE : N;
+					for (int j = jj; j < jEnd; j++) {
+						C[i * N + j] += a * B[k * N + j];
+					}
         }
       }
     }
@@ -81,13 +81,13 @@ void gemm_cpu_o3(float* A, float* B, float *C, int M, int N, int K) {
   for (int i = 0; i < M; i++) {
     for (int kk = 0; kk < K; kk += TILE_SIZE) {
       const int kEnd = (kk + TILE_SIZE < K) ? kk + TILE_SIZE : K;
-      for (int jj = 0; jj < N; jj += TILE_SIZE) {
-        const int jEnd = (jj + TILE_SIZE < N) ? jj + TILE_SIZE : N;
-        for (int k = kk; k < kEnd; k++) {
-          const float a = A[i * K + k];
-          for (int j = jj; j < jEnd; j++) {
-            C[i * N + j] += a * B[k * N + j];
-          }
+			for (int k = kk; k < kEnd; k++) {
+				const float a = A[i * K + k];
+				for (int jj = 0; jj < N; jj += TILE_SIZE) {
+					const int jEnd = (jj + TILE_SIZE < N) ? jj + TILE_SIZE : N;
+					for (int j = jj; j < jEnd; j++) {
+						C[i * N + j] += a * B[k * N + j];
+					}
         }
       }
     }
