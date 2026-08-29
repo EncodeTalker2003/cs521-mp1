@@ -104,24 +104,113 @@ void gemm_gpu_o0(float* A, float* B, float* C, int M, int N, int K)
 
 // The scafolding for optimized GEMM implementations
 __global__ void gemm_gpu_o1_kernel(float* A, float* B, float *C, int M, int N, int K) {
+  int row = blockIdx.x * blockDim.x + threadIdx.x;
+  int col = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (row < M && col < N) {
+    float sum = 0.0;
+    for (int k = 0; k < K; k++) {
+      sum += A[row * K + k] * B[k * N + col];
+    }
+    C[row * N + col] = sum;
+  }
 }
 void gemm_gpu_o1(float* A, float* B, float* C, int M, int N, int K)
 {
 	// Init block and grid size
+  dim3 blockSize(16, 16);
+  dim3 gridSize(
+    (M + blockSize.x - 1) / blockSize.x,
+    (N + blockSize.y - 1) / blockSize.y
+  );
+
+  gemm_gpu_o1_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
 }
 
 __global__ void gemm_gpu_o2_kernel(float* A, float* B, float *C, int M, int N, int K) {
+  constexpr int BS = 8;
+
+  __shared__ float As[BS][BS];
+  __shared__ float Bs[BS][BS];
+
+  int threadRow = threadIdx.y;
+  int threadCol = threadIdx.x;
+
+  int row = blockIdx.y * BS + threadRow;
+  int col = blockIdx.x * BS + threadCol;
+
+  float sum = 0.0f;
+
+  for (int bk = 0; bk < K; bk += BS) {
+    As[threadRow][threadCol] = (row < M && bk + threadCol < K) ? A[row * K + bk + threadCol] : 0.0f;
+    Bs[threadRow][threadCol] = (bk + threadRow < K && col < N) ? B[(bk + threadRow) * N + col] : 0.0f;
+    __syncthreads();
+
+    for (int k = 0; k < BS; ++k) {
+      sum += As[threadRow][k] * Bs[k][threadCol];
+    }
+
+    __syncthreads();
+  }
+
+  if (row < M && col < N)
+    C[row * N + col] = sum;
 }
+
 void gemm_gpu_o2(float* A, float* B, float* C, int M, int N, int K)
 {
 	// Init block and grid size
+  constexpr int BS = 8;
+  dim3 blockSize(BS, BS);
+  dim3 gridSize(
+    (N + BS - 1) / BS,
+    (M + BS - 1) / BS
+  );
+
+  gemm_gpu_o2_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
 }
 
 __global__ void gemm_gpu_o3_kernel(float* A, float* B, float *C, int M, int N, int K) {
+    constexpr int BS = 32; // warp size
+
+  __shared__ float As[BS][BS];
+  __shared__ float Bs[BS][BS];
+
+  int threadRow = threadIdx.y;
+  int threadCol = threadIdx.x;
+
+  int row = blockIdx.y * BS + threadRow;
+  int col = blockIdx.x * BS + threadCol;
+
+  float sum = 0.0f;
+
+  for (int bk = 0; bk < K; bk += BS) {
+    As[threadRow][threadCol] = (row < M && bk + threadCol < K) ? A[row * K + bk + threadCol] : 0.0f;
+    Bs[threadRow][threadCol] = (bk + threadRow < K && col < N) ? B[(bk + threadRow) * N + col] : 0.0f;
+    __syncthreads();
+
+    for (int k = 0; k < BS; ++k) {
+      sum += As[threadRow][k] * Bs[k][threadCol];
+    }
+
+    __syncthreads();
+  }
+
+  if (row < M && col < N)
+    C[row * N + col] = sum;
 }
+
 void gemm_gpu_o3(float* A, float* B, float* C, int M, int N, int K)
 {
 	// Init block and grid size
+  constexpr int BS = 32;
+  dim3 blockSize(BS, BS);
+  dim3 gridSize(
+    (N + BS - 1) / BS,
+    (M + BS - 1) / BS
+  );
+
+  gemm_gpu_o3_kernel<<<gridSize, blockSize>>>(A, B, C, M, N, K);
 }
 
 
@@ -154,7 +243,7 @@ int main(int argc, char* argv[]) {
 	CHECK(gemm_gpu_o3)
 
 	// Actual run
- 	TIME(gemm_gpu_o0)
+ 	//TIME(gemm_gpu_o0)
 	TIME(gemm_gpu_o1)
 	TIME(gemm_gpu_o2)
 	TIME(gemm_gpu_o3)
